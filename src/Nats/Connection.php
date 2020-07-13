@@ -1,4 +1,5 @@
 <?php
+
 namespace Nats;
 
 use RandomLib\Factory;
@@ -100,7 +101,7 @@ class Connection
      *
      * @var array list of subscriptions
      */
-    private $subscriptions = [];
+    private $subscriptions = array();
 
 
     /**
@@ -297,7 +298,7 @@ class Connection
     {
         $this->pings         = 0;
         $this->pubs          = 0;
-        $this->subscriptions = [];
+        $this->subscriptions = array();
         $this->options       = $options;
         if (version_compare(phpversion(), '7.0', '>') === true) {
             $this->randomGenerator = new Php71RandomGenerator();
@@ -321,7 +322,7 @@ class Connection
      */
     private function send($payload)
     {
-        $msg = $payload."\r\n";
+        $msg = $payload . "\r\n";
         $len = strlen($msg);
         while (true) {
             $written = @fwrite($this->streamSocket, $msg);
@@ -445,7 +446,10 @@ class Connection
 
         $this->timeout      = $timeout;
         $this->streamSocket = $this->getStream(
-            $this->options->getAddress(), $timeout, $this->options->getStreamContext());
+            $this->options->getAddress(),
+            $timeout,
+            $this->options->getStreamContext()
+        );
         $this->setStreamTimeout($timeout);
 
         $infoResponse = $this->receive();
@@ -459,10 +463,14 @@ class Connection
                     function ($errno, $errstr, $errfile, $errline) {
                         restore_error_handler();
                         throw Exception::forFailedConnection($errstr);
-                    });
+                    }
+                );
 
                 if (!stream_socket_enable_crypto(
-                        $this->streamSocket, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT)) {
+                    $this->streamSocket,
+                    true,
+                    STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT
+                )) {
                     throw Exception::forFailedConnection('Error negotiating crypto');
                 }
 
@@ -470,7 +478,7 @@ class Connection
             }
         }
 
-        $msg = 'CONNECT '.$this->options;
+        $msg = 'CONNECT ' . $this->options;
         $this->send($msg);
         $this->ping();
         $pingResponse = $this->receive();
@@ -503,12 +511,13 @@ class Connection
      */
     public function request($subject, $payload, \Closure $callback)
     {
-        $inbox = uniqid('_INBOX.');
+        $rbytes        = openssl_random_pseudo_bytes(ceil(32 / 2));
+        $inbox      = '_INBOX.' . substr(bin2hex($rbytes), 0, 32);
+
         $sid   = $this->subscribe(
             $inbox,
             $callback
         );
-        $this->unsubscribe($sid, 1);
         $this->publish($subject, $payload, $inbox);
         $this->wait(1);
     }
@@ -524,7 +533,7 @@ class Connection
     public function subscribe($subject, \Closure $callback)
     {
         $sid = $this->randomGenerator->generateString(16);
-        $msg = 'SUB '.$subject.' '.$sid;
+        $msg = 'SUB ' . $subject . ' ' . $sid;
         $this->send($msg);
         $this->subscriptions[$sid] = $callback;
         return $sid;
@@ -542,7 +551,7 @@ class Connection
     public function queueSubscribe($subject, $queue, \Closure $callback)
     {
         $sid = $this->randomGenerator->generateString(16);
-        $msg = 'SUB '.$subject.' '.$queue.' '.$sid;
+        $msg = 'SUB ' . $subject . ' ' . $queue . ' ' . $sid;
         $this->send($msg);
         $this->subscriptions[$sid] = $callback;
         return $sid;
@@ -558,9 +567,9 @@ class Connection
      */
     public function unsubscribe($sid, $quantity = null)
     {
-        $msg = 'UNSUB '.$sid;
+        $msg = 'UNSUB ' . $sid;
         if ($quantity !== null) {
-            $msg = $msg.' '.$quantity;
+            $msg = $msg . ' ' . $quantity;
         }
 
         $this->send($msg);
@@ -582,13 +591,13 @@ class Connection
      */
     public function publish($subject, $payload = null, $inbox = null)
     {
-        $msg = 'PUB '.$subject;
+        $msg = 'PUB ' . $subject;
         if ($inbox !== null) {
-            $msg = $msg.' '.$inbox;
+            $msg = $msg . ' ' . $inbox;
         }
 
-        $msg = $msg.' '.strlen($payload);
-        $this->send($msg."\r\n".$payload);
+        $msg = $msg . ' ' . strlen($payload);
+        $this->send($msg . "\r\n" . $payload);
         $this->pubs += 1;
     }
 

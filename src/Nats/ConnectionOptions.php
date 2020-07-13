@@ -93,7 +93,7 @@ class ConnectionOptions
      *
      * @var array
      */
-    private $configurable = [
+    private $configurable = array(
                              'host',
                              'port',
                              'user',
@@ -105,7 +105,7 @@ class ConnectionOptions
                              'pedantic',
                              'reconnect',
                              'streamContext',
-                            ];
+                            );
 
 
     /**
@@ -154,12 +154,12 @@ class ConnectionOptions
      */
     public function __toString()
     {
-        $a = [
+        $a = array(
               'lang'     => $this->lang,
               'version'  => $this->version,
               'verbose'  => $this->verbose,
               'pedantic' => $this->pedantic,
-             ];
+             );
         if (empty($this->user) === false) {
             $a['user'] = $this->user;
         }
